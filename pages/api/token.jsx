@@ -2,7 +2,9 @@ import fetch from 'node-fetch';
 
 export default async (req, res) => {
   // Define the URL and request headers
-  const url = 'https://api.1inch.dev/swap/v5.2/1/tokens'
+  const { query } = req;
+
+  const url = `https://api.1inch.dev/swap/v5.2/${query.chainId}/tokens`
   const headers = {
     'accept': 'application/json',
     'Authorization': process.env.NEXT_PUBLIC_1INCH_AUTHORIZATION,

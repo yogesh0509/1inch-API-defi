@@ -10,7 +10,6 @@ import { alchemyProvider } from 'wagmi/providers/alchemy'
 import { useRouter } from 'next/router';
 import { Toaster } from "react-hot-toast"
 import { MutatingDots } from "react-loader-spinner"
-import { MyProvider } from "../context/ContractContext"
 
 const { chains, publicClient, webSocketPublicClient } = configureChains(
     [mainnet, polygon, optimism, arbitrum, avalanche],
@@ -38,7 +37,7 @@ const wagmiConfig = createConfig({
     webSocketPublicClient,
 })
 
-export default function MyApp({ Component, pageProps, router }) {
+export default function MyApp({ Component, pageProps }) {
     const [loading, setLoading] = useState(false);
     const routerApp = useRouter();
 
@@ -63,35 +62,33 @@ export default function MyApp({ Component, pageProps, router }) {
     }, [routerApp]);
 
     return (
-        <MyProvider>
-            <div>
-                {loading ? (
-                    <div className="flex h-screen w-screen justify-center items-center">
-                        <MutatingDots
-                            height="100"
-                            width="100"
-                            color="#526D82"
-                            secondaryColor="#526D82"
-                            radius="12.5"
-                            ariaLabel="mutating-dots-loading"
-                            wrapperStyle={{}}
-                            wrapperClass=""
-                            visible={true}
-                        />
-                    </div>
-                ) : (
-                    <WagmiConfig config={wagmiConfig}>
-                        <RainbowKitProvider
-                            appInfo={demoAppInfo}
-                            chains={chains}
-                            modalSize="compact"
-                        >
-                            <Toaster position="top-center" reverseOrder={false} />
-                            <Component {...pageProps} />
-                        </RainbowKitProvider>
-                    </WagmiConfig>
-                )}
-            </div>
-        </MyProvider>
+        <div>
+            {loading ? (
+                <div className="flex h-screen w-screen justify-center items-center">
+                    <MutatingDots
+                        height="100"
+                        width="100"
+                        color="#526D82"
+                        secondaryColor="#526D82"
+                        radius="12.5"
+                        ariaLabel="mutating-dots-loading"
+                        wrapperStyle={{}}
+                        wrapperClass=""
+                        visible={true}
+                    />
+                </div>
+            ) : (
+                <WagmiConfig config={wagmiConfig}>
+                    <RainbowKitProvider
+                        appInfo={demoAppInfo}
+                        chains={chains}
+                        modalSize="compact"
+                    >
+                        <Toaster position="top-center" reverseOrder={false} />
+                        <Component {...pageProps} />
+                    </RainbowKitProvider>
+                </WagmiConfig>
+            )}
+        </div>
     )
 }
