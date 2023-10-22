@@ -9,33 +9,60 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowDown } from '@fortawesome/free-solid-svg-icons'
 
 export default function Index() {
-  const [outputAmount, setOutputAmount] = useState('0')
+  const [inputAmount, setinputAmount] = useState(0)
+  const [outputAmount, setOutputAmount] = useState(0)
   const [selectedTokenSell, setSelectedTokenSell] = useState()
   const [selectedTokenBuy, setSelectedTokenBuy] = useState()
   const [tokenOptions, settokenOptions] = useState([])
   const [tokens, settokens] = useState()
   const [gasfees, setgasfees] = useState()
-  const [isAllowance, setallowance] = useState(true)
+  // const [isAllowance, setallowance] = useState(true)
+  const [isAllowedBalance, setAllowedBalance] = useState(false)
   const { chain } = useNetwork()
   const { address } = useAccount()
 
   const balance = useBalance({
     address: address,
-    token: selectedTokenSell ? selectedTokenSell.address : "",
+    token: selectedTokenSell ? selectedTokenSell.address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" ? "" : selectedTokenSell.address : "",
   })
-  const inputAmount = selectedTokenSell ? balance.data.formatted : "0"
-  console.log(balance.data)
 
   useEffect(() => {
+    setinputAmount(0)
+    setOutputAmount(0)
+    setAllowedBalance(false)
     handleGetRequest()
-    quotePrice()
     // checkallowance()
-  }, [settokenOptions, settokens, chain])
+  }, [settokens, chain])
 
   useEffect(() => {
-    quotePrice()
-    // checkallowance()
+    setinputAmount(0)
+    setOutputAmount(0)
+    setAllowedBalance(false)
+    console.log(balance.data)
   }, [selectedTokenBuy, selectedTokenSell])
+
+  useEffect(() => {
+    if (inputAmount > 0) {
+      quotePrice()
+    }
+  }, [inputAmount])
+
+  useEffect(() => {
+    let timer
+
+    const callQuotePrice = async () => {
+      if (inputAmount > 0) {
+        await quotePrice()
+      }
+      timer = setTimeout(callQuotePrice, 15000)
+    }
+
+    callQuotePrice()
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [outputAmount])
 
   const handleSwap = async () => {
     toast.dismiss("connecting")
@@ -44,65 +71,61 @@ export default function Index() {
     })
 
     try {
-      const response = await fetch(`/api/swap?chainId=${chain.id}&src=${selectedTokenSell.address}&dst=${selectedTokenBuy.address}&amount=${inputAmount}&from=${address}&slippage=${1}`, {
+      const response = await fetch(`/api/swap?chainId=${chain.id}&src=${selectedTokenSell.address}&dst=${selectedTokenBuy.address}&amount=${inputAmount * 10 ** selectedTokenSell.decimals}&from=${address}&slippage=${1}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         }
       })
-
+      const res = await response.json()
+      console.log(res)
       if (response.ok) {
-        toast.dismiss("connect");
+        toast.dismiss("connect")
         toast.success("Transaction Completed!!")
 
       } else {
-        console.log('Error handling POST request')
-        toast.dismiss("connect");
+        toast.dismiss("connect")
         const err = await response.json()
         toast.error(err.description)
       }
     } catch (error) {
-      console.log('Error:', error)
-      toast.dismiss("connect");
+      toast.dismiss("connect")
       toast.error("Error connecting with contract")
     }
   }
 
-  const handleApprovtx = async () => {
-    toast.dismiss("connecting")
-    toast.loading("Connecting with contract", {
-      id: "connect",
-    })
+  // const handleApprovtx = async () => {
+  //   toast.dismiss("connecting")
+  //   toast.loading("Connecting with contract", {
+  //     id: "connect",
+  //   })
 
-    try {
-      const response = await fetch(`/api/approve?chainId=${chain.id}&tokenAddress=${selectedTokenSell.address}&amount=${inputAmount}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
-      console.log(await response.json())
-      if (response.ok) {
-        toast.dismiss("connect");
-        toast.success("Transaction Completed!!")
+  //   try {
+  //     const response = await fetch(`/api/approve?chainId=${chain.id}&tokenAddress=${selectedTokenSell.address}&amount=${inputAmount}`, {
+  //       method: 'GET',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       }
+  //     })
+  //     if (response.ok) {
+  //       toast.dismiss("connect")
+  //       toast.success("Transaction Completed!!")
 
-      } else {
-        console.log('Error handling POST request')
-        toast.dismiss("connect");
-        const err = await response.json()
-        toast.error(err.description)
-      }
-    } catch (error) {
-      console.log('Error:', error)
-      toast.dismiss("connect");
-      toast.error("Error connecting with contract")
-    }
-  }
+  //     } else {
+  //       toast.dismiss("connect")
+  //       const err = await response.json()
+  //       toast.error(err.description)
+  //     }
+  //   } catch (error) {
+  //     toast.dismiss("connect")
+  //     toast.error("Error connecting with contract")
+  //   }
+  // }
 
   const quotePrice = async () => {
     if (selectedTokenSell && selectedTokenBuy) {
       try {
-        const response = await fetch(`/api/quote?chainId=${chain.id}&src=${selectedTokenSell.address}&dst=${selectedTokenBuy.address}&amount=${inputAmount}`, {
+        const response = await fetch(`/api/quote?chainId=${chain.id}&src=${selectedTokenSell.address}&dst=${selectedTokenBuy.address}&amount=${inputAmount * 10 ** selectedTokenSell.decimals}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -110,7 +133,8 @@ export default function Index() {
         })
         const responseData = await response.json()
         if (response.ok) {
-          setOutputAmount(responseData.toAmount)
+          console.log(responseData)
+          setOutputAmount(responseData.toAmount / 10 ** selectedTokenBuy.decimals)
         } else {
           console.log(responseData)
         }
@@ -146,7 +170,6 @@ export default function Index() {
   // }
 
   const handleGetRequest = async () => {
-    console.log("hello")
     try {
       const response = await fetch(`/api/token?chainId=${chain.id}`, {
         method: 'GET',
@@ -189,15 +212,45 @@ export default function Index() {
         }
       })
       const responseData = await response.json()
-      if (response.ok) {
+
+      if (response.status == 200) {
         setgasfees(responseData)
 
-      } else {
+      }
+      else if (response.status == 429) {
+        // await new Promise((resolve) => setTimeout(resolve, 5000))
+        // await handleGetRequest()
+      }
+      else {
         console.log(responseData)
       }
     } catch (error) {
       console.error('Error:', error)
     }
+  }
+
+  const handleInput = (e) => {
+    if (!isNaturalNumber(e.target.textContent)) {
+      toast.error("amount value should be greater than 0 and not in decimals!!")
+      setinputAmount(0)
+      setOutputAmount(0)
+      setAllowedBalance(false)
+    }
+    else {
+      if (balance.data && parseFloat(e.target.textContent) < balance.data.formatted) {
+        setAllowedBalance(true)
+        setinputAmount(parseFloat(e.target.textContent))
+      }
+      else {
+        setAllowedBalance(false)
+        setinputAmount(parseFloat(e.target.textContent))
+      }
+    }
+  }
+
+  function isNaturalNumber(input) {
+    const number = parseFloat(input)
+    return !isNaN(number) && isFinite(number) && number > 0
   }
 
   return (
@@ -220,7 +273,7 @@ export default function Index() {
                 <select
                   value={selectedTokenSell.symbol}
                   onChange={(e) => setSelectedTokenSell(tokens[e.target.selectedOptions[0].getAttribute('data-key')])}
-                  className="px-1 rounded-lg focus:outline-none focus:ring w-18"
+                  className="px-1 rounded-lg focus:outline-none focus:ring w-1/4"
                 >
                   {tokenOptions.map((token) => (
                     <option key={Object.keys(token)[0]} data-key={Object.keys(token)[0]} value={Object.values(token)[0]}>
@@ -229,7 +282,15 @@ export default function Index() {
                   ))}
                 </select>
                 <div className="flex-grow"></div>
-                <p className="text-lg font-semibold">{inputAmount}</p>
+                <div className="text-lg font-semibold p-2 rounded">
+                  <div
+                    contentEditable={true}
+                    placeholder={inputAmount}
+                    onInput={handleInput}
+                  >
+                    {inputAmount}
+                  </div>
+                </div>
               </div>
               {/* Arrow icon from Box 1 to Box 2 */}
               <div className="absolute top-100% left-1/2 transform -translate-x-1/2">
@@ -249,7 +310,7 @@ export default function Index() {
                 <select
                   value={selectedTokenBuy.symbol}
                   onChange={(e) => setSelectedTokenBuy(tokens[e.target.selectedOptions[0].getAttribute('data-key')])}
-                  className="px-1 rounded-lg focus:outline-none focus:ring w-18"
+                  className="px-1 rounded-lg focus:outline-none focus:ring w-1/4"
                 >
                   {tokenOptions.map((token) => (
                     <option key={Object.keys(token)[0]} data-key={Object.keys(token)[0]} value={Object.values(token)[0]}>
@@ -258,7 +319,9 @@ export default function Index() {
                   ))}
                 </select>
                 <div className="flex-grow"></div>
-                <p className="text-lg font-semibold">{outputAmount}</p>
+                <div className="text-lg font-semibold p-2 rounded">
+                  {outputAmount}
+                </div>
               </div>
             </div>
             <div className="border border-gray-300 rounded-lg mb-6 p-4">
@@ -271,14 +334,14 @@ export default function Index() {
           <div className="w-1/2 p-2 rounded-lg focus:outline-none focus:ring">
             <ConnectWallet />
           </div>
-          {isAllowance
+          {isAllowedBalance
             ?
             <button className="bg-red-500 focus:outline-none focus:ring text-white py-2 px-4 rounded-lg" onClick={handleSwap} >
               SWAP
             </button>
             :
-            <button className="bg-red-500 focus:outline-none focus:ring text-white py-2 px-4 rounded-lg" onClick={handleApprovtx} >
-              Insufficient allowance!!
+            <button className="bg-red-500 focus:outline-none focus:ring text-white py-2 px-4 rounded-lg" >
+              Insufficient Balance
             </button>
           }
         </div>
@@ -287,4 +350,4 @@ export default function Index() {
   )
 }
 
-// wallet amount validation
+// refresh every 15 secs

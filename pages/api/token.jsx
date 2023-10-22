@@ -27,7 +27,6 @@ export default async (req, res) => {
       for (const token in data.tokens) {
         if (data.tokens.hasOwnProperty(token)) {
           updatedData.tokens[token] = { ...data.tokens[token] }
-          delete updatedData.tokens[token].decimals
           delete updatedData.tokens[token].name
           delete updatedData.tokens[token].tags
           delete updatedData.tokens[token].eip2612
